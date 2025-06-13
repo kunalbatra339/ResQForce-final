@@ -1,0 +1,157 @@
+<!-- templates/client.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emergency Reporting | ResQForce</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/client.css">
+</head>
+<body>
+    <div id="map"></div>
+
+    <style>
+        .report-box {
+            width: 50%;
+            margin: auto;
+            padding: 30px;
+            background: #111;
+            color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+            font-family: Arial, sans-serif;
+        }
+
+        .report-box h3 {
+            font-size: 24px;
+            color: #2eccff;
+            margin-bottom: 10px;
+        }
+
+        .disclaimer {
+            font-size: 12px;
+            color: #ccc;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border: 1px solid #3498db;
+            background: #1e1e1e;
+            color: white;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .checkbox-group {
+            margin-bottom: 20px;
+        }
+
+        .checkbox-group label {
+            display: block;
+            margin: 5px 0;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        button[type="submit"] {
+            padding: 12px 24px;
+            background-color: #e74c3c;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #c0392b;
+        }
+    </style>
+
+    <div class="report-box">
+        <h3>🚨 Report Emergency</h3>
+        <div class="disclaimer">
+            Disclaimer: This platform is intended for demonstration and informational purposes only. The reported emergencies may not be monitored by official agencies. For real-life emergencies, please contact the appropriate local authorities directly.
+        </div>
+        <form onsubmit="reportEmergency(event)">
+            <select id="tagDropdown">
+                <option value="fire">🔥 Fire</option>
+                <option value="flood">🌊 Flood</option>
+                <option value="accident">🚨 Accident</option>
+            </select>
+
+            <div class="checkbox-group">
+                <label><input type="checkbox" name="options" value="FireBrigade"> FireBrigade</label>
+                <label><input type="checkbox" name="options" value="Police"> Police</label>
+                <label><input type="checkbox" name="options" value="Ambulance"> Ambulance</label>
+            </div>
+
+            <textarea 
+                id="description" 
+                name="description"
+                placeholder="Describe the emergency (e.g., 100 people trapped, need boats!)"
+                required
+            ></textarea>
+
+            <button type="submit">Send Emergency Alert</button>
+        </form>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        async function reportEmergency(event) {
+            event.preventDefault();
+
+            if (!navigator.geolocation) {
+                alert("Geolocation not supported");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async pos => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const description = document.getElementById('description').value;
+                const tag = document.getElementById('tagDropdown').value;
+
+                const response = await fetch('/api/report_emergency', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat, lng, description, tag })
+                });
+
+                if (response.ok) {
+                    alert('Emergency reported successfully! Help is on the way.');
+                    map.setView([lat, lng], 15);
+                    L.marker([lat, lng]).addTo(map)
+                        .bindPopup(`🚨 ${tag.charAt(0).toUpperCase() + tag.slice(1)} Emergency`).openPopup();
+
+                    document.getElementById('description').value = '';
+                } else {
+                    alert('Failed to report emergency.');
+                }
+            }, () => {
+                alert("Please enable location access to report emergency!");
+            });
+        }
+    </script>
+</body>
+</html>

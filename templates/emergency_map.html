@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emergency Response Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="/static/css/emergency_map.css">
+</head>
+<body>
+    <div class="controls">
+        <button onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
+        <button onclick="deleteEmergencies()">🗑 Delete All Emergencies</button>
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="/static/js/emergency_map.js"></script>
+    
+</body>
+</html>

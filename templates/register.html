@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register | ResQForce</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Grotesk:wght@400;600&family=Unbounded:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/register.css">
+</head>
+<body>
+  <div class="register-container">
+    <h2>Join ResQForce</h2>
+    <p class="tagline">Empowering Every Responder</p>
+    <form action="/register" method="POST">
+      <input type="text" name="name" placeholder="Agency Name" required>
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="password" name="password" placeholder="Password" required>
+      <select name="expertise" required>
+        <option value="">Select Expertise</option>
+        <option value="Medical">Medical</option>
+        <option value="Search & Rescue">Search & Rescue</option>
+        <option value="Firefighting">Firefighting</option>
+        <option value="Logistics">Logistics</option>
+        <option value="Other">Other</option>
+      </select>
+      <button type="submit">Register</button>
+    </form>
+    <div class="login-link">
+      Already have an account? <a href="/login">Login here</a>
+    <!-- </div>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %} -->
+  </div>
+</body>
+</html>

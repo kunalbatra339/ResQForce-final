@@ -1,0 +1,67 @@
+:root {
+            --medical: #e74c3c;
+            --fire: #f39c12;
+            --rescue: #3498db;
+            --logistics: #2ecc71;
+            --emergency: #c0392b;
+        }
+        body { 
+            margin: 0; 
+            font-family: Arial, sans-serif;
+            height: 100vh;
+        }
+        #map { 
+            height: 100%;
+            z-index: 1;
+        }
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+        .legend-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+        }
+        .pulsating {
+            animation: pulse 1.5s infinite;
+        }
+        .emergency-marker {
+            background: rgba(192, 57, 43, 0.2);
+            border: 2px solid #c0392b;
+            border-radius: 50%;
+            width: 30px!important;
+            height: 30px!important;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+@keyframes pulseAlert {
+            0% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.05); }
+            100% { transform: translateX(-50%) scale(1); }
+        }

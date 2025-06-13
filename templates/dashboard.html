@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rescue Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        :root {
+            --medical: #e74c3c;
+            --fire: #f39c12;
+            --rescue: #3498db;
+            --logistics: #2ecc71;
+            --emergency: #c0392b;
+        }
+        body { 
+            margin: 0; 
+            font-family: Arial, sans-serif;
+            height: 100vh;
+        }
+        #map { 
+            height: 100%;
+            z-index: 1;
+        }
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+        .legend-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+        }
+        .pulsating {
+            animation: pulse 1.5s infinite;
+        }
+        .emergency-marker {
+            background: rgba(192, 57, 43, 0.2);
+            border: 2px solid #c0392b;
+            border-radius: 50%;
+            width: 30px!important;
+            height: 30px!important;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Add this right after the opening <body> tag -->
+<div id="emergencyAlert" style="
+position: fixed;
+top: 20px;
+left: 50%;
+transform: translateX(-50%);
+background: #ff4444;
+color: white;
+padding: 15px 25px;
+border-radius: 5px;
+box-shadow: 0 0 20px rgba(0,0,0,0.3);
+z-index: 10000;
+display: none;
+animation: pulseAlert 2s infinite;
+">
+🚨 NEW EMERGENCY DETECTED! 🚨
+<button onclick="hideAlert()" style="
+    background: transparent;
+    border: 1px solid white;
+    color: white;
+    margin-left: 15px;
+    padding: 0 10px;
+    border-radius: 3px;
+    cursor: pointer;
+">Dismiss</button>
+</div>
+
+<style>
+@keyframes pulseAlert {
+    0% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.05); }
+    100% { transform: translateX(-50%) scale(1); }
+}
+</style>
+    <!-- In the controls div, add this button -->
+<!-- Add this inside the controls div -->
+<div class="controls">
+    <button onclick="window.location.href='/emergency_map'" 
+            style="background: #e74c3c; color: white; margin-bottom: 10px;">
+        🚨 Emergency Detected
+    </button>
+    <!-- Keep existing buttons -->
+    <button onclick="updateLocation()">📍 Update My Location</button>
+    <button onclick="window.location.href='/logout'">🚪 Logout</button>
+</div>
+    
+    <div class="legend">
+        <div class="legend-item">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSIjZTM3MzNjIiBkPSJNMTkgOGgydjZoLTJ2LTZ6bS0yIDZoLTRWOGg0djZ6bS02IDBIN1Y4aDJ2NnptLTQgMGgtMnYtNmgydjZ6Ii8+PHBhdGggZmlsbD0iI2UzNzMzYyIgZD0iTTEyIDJDNi40ODYgMiAyIDYuNDg2IDIgMTJzNC40ODYgMTAgMTAgMTAgMTAtNC40ODYgMTAtMTBTMTcuNTE0IDIgMTIgMnptMCAxOGMtNC40MTEgMC04LTMuNTg5LTgtOHMzLjU4OS04IDgtOCA4IDMuNTg5IDggOC0zLjU4OSA4LTggOHoiLz48L3N2Zz4=" class="legend-icon">
+            <span>Medical Teams</span>
+        </div>
+        <div class="legend-item">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSIjZjM5YzEyIiBkPSJNMTIgMjNjLTQuNDExIDAtOC0zLjU4OS04LThzMy41ODktOCA4LTggOCAzLjU4OSA4IDgtMy41ODkgOC04IDh6bTAtMTRjLTMuMzA5IDAtNiAyLjY5MS02IDZzMi42OTEgNiA2IDYgNi0yLjY5MSA2LTYtMi42OTEtNi02LTZ6Ii8+PHBhdGggZmlsbD0iI2YzOWMxMiIgZD0iTTEyIDE5Yy0yLjIwNiAwLTQtMS43OTQtNC00czEuNzk0LTQgNC00IDQgMS43OTQgNCA0LTEuNzk0IDQtNCA0em0wLTZjLTEuMTAzIDAtMiAuODk3LTIgMnMuODk3IDIgMiAyIDItLjg5NyAyLTItLjg5Ny0yLTItMnoiLz48L3N2Zz4=" class="legend-icon">
+            <span>Firefighting</span>
+        </div>
+        <div class="legend-item">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSIjMzQ5OGRiIiBkPSJNMTIgMkM4LjEzIDIgNSA1LjEzIDUgOWMwIDUuMjUgNyAxMyA3IDEzczctNy43NSA3LTEzYzAtMy44Ny0zLjEzLTctNy03em0wIDkuNWMtMS4zOCAwLTIuNS0xLjEyLTIuNS0yLjVzMS4xMi0yLjUgMi41LTIuNSAyLjUgMS4xMiAyLjUgMi41LTEuMTIgMi41LTIuNSAyLjV6Ii8+PC9zdmc+" class="legend-icon">
+            <span>Search & Rescue</span>
+        </div>
+        <div class="legend-item">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSIjMmVjYzcxIiBkPSJNMTkgMTVoMnY0aC0yem0tMS03aC0zVjRIM3YxNWg0djJoMnYtMmg2djJoMnYtMmgzVjh6bS01LTMuODc1bDMuNzUgMy43NUgxM1Y3LjEyNXoiLz48L3N2Zz4=" class="legend-icon">
+            <span>Logistics</span>
+        </div>
+        <div class="legend-item">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSIjYzAzOTJiIiBkPSJNMTIgMkwyIDIxaDIwTDEyIDJ6bTAgNC44M0wxOC40NyAxOUg1LjUzTDEyIDYuODN6TTEzIDE1aC0ydi0yaDJ2MnptMC00aC0yVjloMnYyeiIvPjwvc3ZnPg==" class="legend-icon pulsating">
+            <span>Emergencies</span>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+    
+        const map = L.map('map').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        const createIcon = (svg, color) => L.divIcon({
+            className: 'custom-icon',
+            html: svg.replace('fill="currentColor"', `fill="${color}"`),
+            iconSize: [40, 40]
+        });
+
+        const agencyIcons = {
+            'Medical': createIcon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M19 8h2v6h-2v-6zm-2 6h-2V8h2v6zm-4 0H7V8h6v6zM5 8H3v6h2V8z"/><path fill="currentColor" d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/></svg>`, '#e74c3c'),
+            'Firefighting': createIcon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 23c-4.411 0-8-3.589-8-8 0-4.411 3.589-8 8-8s8 3.589 8 8c0 4.411-3.589 8-8 8zm0-14c-3.309 0-6 2.691-6 6s2.691 6 6 6 6-2.691 6-6-2.691-6-6-6z"/><path fill="currentColor" d="M12 19c-2.206 0-4-1.794-4-4s1.794-4 4-4 4 1.794 4 4-1.794 4-4 4zm0-6c-1.103 0-2 .897-2 2s.897 2 2 2 2-.897 2-2-.897-2-2-2z"/><path fill="currentColor" d="M12 15.5c-.275 0-.5-.225-.5-.5s.225-.5.5-.5.5.225.5.5-.225.5-.5.5z"/></svg>`, '#f39c12'),
+            'Search & Rescue': createIcon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`, '#3498db'),
+            'Logistics': createIcon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M19 15h2v4h-2z"/><path fill="currentColor" d="M20 8h-3V4H3v15h4v2h2v-2h6v2h2v-2h2V8zm-5-3h3v3h-3V5zM5 5h10v10H5V5zm12 10V8h2v7h-2z"/></svg>`, '#2ecc71'),
+            'default': createIcon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`, '#95a5a6')
+        };
+
+        let currentMarker = null;
+        const agencyMarkers = [];
+        const emergencyMarkers = [];
+
+        async function updateMap() {
+            try {
+                console.log('[DEBUG] Starting map update...');
+                
+                // Clear existing markers
+                agencyMarkers.forEach(m => map.removeLayer(m));
+                emergencyMarkers.forEach(m => map.removeLayer(m));
+                agencyMarkers.length = 0;
+                emergencyMarkers.length = 0;
+
+                // Load agencies
+                const agencies = await fetch('/api/agencies').then(r => r.json());
+                console.log('[DEBUG] Agencies:', agencies);
+                
+                agencies.forEach(a => {
+                    const marker = L.marker([a.latitude, a.longitude], {
+                        icon: agencyIcons[a.expertise] || agencyIcons.default
+                    }).bindPopup(`<b>${a.name}</b><br>${a.expertise} Team`);
+                    marker.addTo(map);
+                    agencyMarkers.push(marker);
+                });
+
+                // Load emergencies
+                const emergencies = await fetch('/api/emergencies').then(r => r.json());
+                console.log('[DEBUG] Emergencies:', emergencies);
+                
+                emergencies.forEach(e => {
+                    console.log('[DEBUG] Adding emergency:', e);
+                    const emergencyMarker = L.marker([e.latitude, e.longitude], {
+                        icon: L.divIcon({
+                            className: 'emergency-marker',
+                            html: `<div style="color:red;font-size:24px">⚠️</div>`,
+                            iconSize: [30, 30]
+                        })
+                    }).bindPopup(`
+                        <div class="emergency-popup">
+                            <b>${e.severity_display} Emergency</b><br>
+                            ${e.description}<br><br>
+                            <small>📍 Location: ${e.latitude.toFixed(4)}, ${e.longitude.toFixed(4)}</small><br>
+                            <small>⏰ Reported: ${new Date(e.created_at).toLocaleString()}</small>
+                        </div>
+                    `);
+                    emergencyMarker.addTo(map);
+                    emergencyMarkers.push(emergencyMarker);
+                });
+
+                autoCenter();
+                console.log('[DEBUG] Map update complete');
+            } catch (error) {
+                console.error('[ERROR] Map update failed:', error);
+            }
+        }
+
+        function autoCenter() {
+            const bounds = L.latLngBounds([
+                ...agencyMarkers.map(m => m.getLatLng()),
+                ...emergencyMarkers.map(m => m.getLatLng())
+            ]);
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+
+        async function updateLocation() {
+            if (!navigator.geolocation) {
+                alert("Geolocation not supported");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async pos => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                
+                await fetch('/api/update_location', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ lat, lng })
+                });
+                
+                map.setView([lat, lng], 15);
+                updateMap();
+            });
+        }
+
+        // Initial load and refresh every 2 seconds
+        updateMap();
+        setInterval(updateMap, 2000);
+        
+    // Add these functions to your existing script
+    function showEmergencyAlert() {
+        const alert = document.getElementById('emergencyAlert');
+        alert.style.display = 'block';
+        
+        // Auto-hide after 30 seconds
+        setTimeout(hideAlert, 30000);
+    }
+
+    function hideAlert() {
+        document.getElementById('emergencyAlert').style.display = 'none';
+    }
+
+    // Modify your updateMap function to trigger alerts
+    // ... (keep all other functions and variables the same)
+
+    // CORRECTED updateMap function (only one implementation)
+    async function updateMap() {
+        try {
+            const previousEmergencyCount = emergencyMarkers.length;
+            
+            console.log('[DEBUG] Starting map update...');
+            
+            // Clear existing markers
+            agencyMarkers.forEach(m => map.removeLayer(m));
+            emergencyMarkers.forEach(m => map.removeLayer(m));
+            agencyMarkers.length = 0;
+            emergencyMarkers.length = 0;
+
+            // Load agencies
+            const agencies = await fetch('/api/agencies').then(r => r.json());
+            console.log('[DEBUG] Agencies:', agencies);
+            
+            agencies.forEach(a => {
+                const marker = L.marker([a.latitude, a.longitude], {
+                    icon: agencyIcons[a.expertise] || agencyIcons.default
+                }).bindPopup(`<b>${a.name}</b><br>${a.expertise} Team`);
+                marker.addTo(map);
+                agencyMarkers.push(marker);
+            });
+
+            // Load emergencies
+            const emergencies = await fetch('/api/emergencies').then(r => r.json());
+            console.log('[DEBUG] Emergencies:', emergencies);
+            
+            emergencies.forEach(e => {
+                console.log('[DEBUG] Adding emergency:', e);
+                const emergencyMarker = L.marker([e.latitude, e.longitude], {
+                    icon: L.divIcon({
+                        className: 'emergency-marker',
+                        html: `<div style="color:red;font-size:24px">⚠️</div>`,
+                        iconSize: [30, 30]
+                    })
+                }).bindPopup(`
+                    <div class="emergency-popup">
+                        <b>${e.severity_display} Emergency</b><br>
+                        ${e.description}<br><br>
+                        <small>📍 Location: ${e.latitude.toFixed(4)}, ${e.longitude.toFixed(4)}</small><br>
+                        <small>⏰ Reported: ${new Date(e.created_at).toLocaleString()}</small>
+                    </div>
+                `);
+                emergencyMarker.addTo(map);
+                emergencyMarkers.push(emergencyMarker);
+            });
+
+            // Show alert if new emergencies are detected
+            if (emergencies.length > previousEmergencyCount) {
+                showEmergencyAlert();
+            }
+
+            autoCenter();
+            console.log('[DEBUG] Map update complete');
+        } catch (error) {
+            console.error('[ERROR] Map update failed:', error);
+        }
+    }
+
+    // Rest of the code remains the same...
+
+    // Add sound notification (optional)
+    function playAlertSound() {
+        const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
+        audio.play().catch(e => console.log('Audio play failed:', e));
+    }
+
+    // Update showEmergencyAlert to include sound
+    function showEmergencyAlert() {
+        const alert = document.getElementById('emergencyAlert');
+        alert.style.display = 'block';
+        playAlertSound();
+        setTimeout(hideAlert, 30000);
+    }
+    </script>
+</body>
+</html>
