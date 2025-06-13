@@ -11,7 +11,7 @@ app.secret_key = os.urandom(24)
 CORS(app)
 
 # MongoDB Configuration (Localhost)
-client = MongoClient("mongodb+srv://kbatra339:kunal8ballpool@cluster0.wgcc4j6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+client = MongoClient("mongodb+srv://zero2omegadev:ayushkunal456@cluster0.5rnijnb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 db = client['rescue_db']
 agencies_collection = db['agencies']
 emergencies_collection = db['emergencies']
