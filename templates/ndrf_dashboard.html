@@ -4,36 +4,71 @@
     <meta charset="UTF-8">
     <title>NDRF Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Tailwind CSS CDN for better styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background: #f5f5f5;
+            background: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
         }
         h1 {
             text-align: center;
             margin: 20px 0;
+            color: #f56565; /* Reddish heading */
+            font-size: 2.5rem; /* Larger heading */
+            font-weight: bold;
         }
         #map {
-            height: 400px;
-            width: 100%;
+            height: 500px; /* Increased map height */
+            width: 90%; /* Adjusted width for better centering */
+            margin: 20px auto; /* Center the map */
+            border-radius: 0.75rem; /* Rounded corners */
+            box-shadow: 0 0 15px rgba(0,0,0,0.4); /* Darker shadow */
         }
         table {
             width: 90%;
             margin: 20px auto;
             border-collapse: collapse;
-            background: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background: #2d3748; /* Darker table background */
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            border-radius: 0.75rem; /* Rounded corners for table */
+            overflow: hidden; /* Ensures rounded corners apply to content */
         }
         th, td {
-            padding: 10px;
-            border: 1px solid #ccc;
+            padding: 12px; /* More padding */
+            border: 1px solid #4a5568; /* Darker border */
+            text-align: left;
         }
         th {
-            background: #007BFF;
+            background: #4299e1; /* Blue header */
             color: white;
+            font-weight: bold;
+            text-transform: uppercase; /* Uppercase headers */
+            font-size: 0.9rem;
         }
+        tr:nth-child(even) {
+            background-color: #2a3340; /* Slightly different background for even rows */
+        }
+        tr:hover {
+            background-color: #3a475a; /* Hover effect */
+        }
+        .leaflet-popup-content-wrapper {
+            background: #2d3748;
+            color: #e2e8f0;
+            border-radius: 0.5rem;
+        }
+        .leaflet-popup-content {
+            font-size: 0.9rem;
+        }
+        .leaflet-popup-tip {
+            background: #2d3748;
+        }
+        .severity-high { color: #ef4444; font-weight: bold; } /* Red */
+        .severity-medium { color: #f59e0b; font-weight: bold; } /* Amber */
+        .severity-low { color: #10b981; font-weight: bold; } /* Green */
     </style>
 </head>
 <body>
@@ -46,13 +81,17 @@
         <thead>
             <tr>
                 <th>ID</th>
+                <th>Severity</th> <!-- Added Severity column -->
                 <th>Description</th>
                 <th>Tag</th>
                 <th>Reported By</th>
                 <th>Reported At</th>
+                <th>Distance (m)</th> <!-- Added Distance column -->
             </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+            <!-- Data will be loaded here -->
+        </tbody>
     </table>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -63,33 +102,72 @@
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
+        let currentMarkers = []; // To keep track of markers to clear them
+
         async function loadEmergencies() {
-            const response = await fetch('/api/emergency_details');
+            // Clear existing markers from map
+            currentMarkers.forEach(m => map.removeLayer(m));
+            currentMarkers = [];
+
+            const response = await fetch('/api/emergency_details'); // This endpoint provides distance and severity_display
             const data = await response.json();
 
             const tableBody = document.querySelector('#emergencyTable tbody');
-            tableBody.innerHTML = '';
+            tableBody.innerHTML = ''; // Clear table body
+
+            if (data.error) {
+                console.error("Error fetching emergencies:", data.error);
+                tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-red-400">Error loading emergencies: ${data.error}</td></tr>`;
+                return;
+            }
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-400">No pending emergencies found.</td></tr>`;
+                return;
+            }
 
             data.forEach(e => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${e.id}</td>
+                    <td>${e._id.substring(0, 8)}...</td> <!-- Display first 8 chars of ID -->
+                    <td class="severity-${e.severity}">${e.severity_display}</td> <!-- Display severity -->
                     <td>${e.description}</td>
                     <td>${e.tag}</td>
                     <td>${e.reported_by}</td>
                     <td>${new Date(e.created_at).toLocaleString()}</td>
+                    <td>${e.distance ? e.distance.toFixed(2) + ' m' : 'N/A'}</td> <!-- Display distance -->
                 `;
                 tableBody.appendChild(row);
 
-                // Add to map
-                L.marker([e.latitude, e.longitude])
-                    .addTo(map)
-                    .bindPopup(`<strong>${e.description}</strong><br>Tag: ${e.tag}`);
+                // Add to map if coordinates are valid
+                if (e.latitude && e.longitude && !isNaN(parseFloat(e.latitude)) && !isNaN(parseFloat(e.longitude))) {
+                    const lat = parseFloat(e.latitude);
+                    const lng = parseFloat(e.longitude);
+
+                    const marker = L.marker([lat, lng])
+                        .addTo(map)
+                        .bindPopup(`
+                            <strong>${e.severity_display} Emergency</strong><br>
+                            ${e.description}<br>
+                            Tag: ${e.tag}<br>
+                            Distance: ${e.distance ? e.distance.toFixed(2) + ' m' : 'N/A'}<br>
+                            Reported: ${new Date(e.created_at).toLocaleString()}
+                        `);
+                    currentMarkers.push(marker); // Add marker to array
+
+                    // Optionally, fit map bounds to all markers
+                    if (currentMarkers.length > 0) {
+                        const group = new L.featureGroup(currentMarkers);
+                        map.fitBounds(group.getBounds().pad(0.2));
+                    }
+                } else {
+                    console.warn("Skipping marker for emergency with invalid coordinates:", e);
+                }
             });
         }
 
         loadEmergencies();
-        setInterval(loadEmergencies, 30000); // Auto-refresh every 30 sec
+        setInterval(loadEmergencies, 10000); // Auto-refresh every 10 seconds (faster for active dashboard)
     </script>
 
 </body>

@@ -1,3 +1,7 @@
+// Ensure Leaflet is loaded before this script runs
+// const L = window.L; // If Leaflet is globally available
+
+// Initialize map
 const map = L.map('map', {
     center: [20.5937, 78.9629],
     zoom: 5,
@@ -21,6 +25,7 @@ async function loadEmergencies() {
         const response = await fetch('/api/emergency_details');
         if (!response.ok) {
             console.error('API Error:', response.status);
+            displayMessage('Error loading emergencies.', 'error');
             return;
         }
 
@@ -29,6 +34,7 @@ async function loadEmergencies() {
 
         if (emergencies.length === 0) {
             console.warn('No emergencies found');
+            displayMessage('No pending emergencies found.', 'info'); // Use info for no emergencies
             return;
         }
 
@@ -62,9 +68,33 @@ async function loadEmergencies() {
 
         const group = new L.featureGroup(emergencyMarkers);
         map.fitBounds(group.getBounds().pad(0.2));
+        displayMessage('', ''); // Clear any previous messages
     } catch (error) {
         console.error('Critical Error:', error);
+        displayMessage('Failed to load emergencies due to a critical error.', 'error');
     }
+}
+
+// Function to display messages on the page
+function displayMessage(message, type) {
+    const statusMessageDiv = document.getElementById('status-message');
+    if (statusMessageDiv) { // Ensure the element exists
+        statusMessageDiv.textContent = message;
+        statusMessageDiv.className = `message-box ${type} ${message ? '' : 'hidden'}`;
+        if (message) {
+            setTimeout(() => {
+                statusMessageDiv.classList.add('hidden');
+            }, 5000); // Hide message after 5 seconds
+        }
+    } else {
+        console.warn('Status message div not found. Message:', message);
+    }
+}
+
+// Modified deleteEmergencies to redirect to the new confirmation page
+function deleteEmergencies() {
+    // Redirect to the new confirmation page
+    window.location.href = '/confirm_ndrf_delete';
 }
 
 // Call on load and every 2 seconds
@@ -72,27 +102,12 @@ loadEmergencies();
 setInterval(loadEmergencies, 2000);
 setTimeout(() => map.invalidateSize(), 100);
 
-// New function to delete all emergencies
-async function deleteEmergencies() {
-    if (!confirm("Are you sure you want to delete ALL emergencies?")) return;
-
-    try {
-        const response = await fetch('/api/delete_emergencies', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-            alert("✅ All emergencies deleted successfully!");
-            loadEmergencies();
-        } else {
-            alert("❌ Error: " + result.error);
-        }
-    } catch (err) {
-        console.error(err);
-        alert("⚠ Something went wrong.");
+// Check for success message from redirect
+window.onload = function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('status') === 'deleted') {
+        displayMessage("✅ All emergencies deleted successfully!", 'success');
+        // Clean the URL to remove the query parameter
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
-}
+};

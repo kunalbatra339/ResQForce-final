@@ -5,34 +5,58 @@
     <title>Emergency Reporting | ResQForce</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/client.css">
-</head>
-<body>
-    <div id="map"></div>
-
+    <!-- Using Tailwind CSS for better styling and responsiveness -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Custom styles for the report box and message box */
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #map {
+            height: 300px;
+            width: 100%;
+            max-width: 800px; /* Limit map width */
+            margin-bottom: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+        }
+
         .report-box {
-            width: 50%;
-            margin: auto;
+            width: 100%;
+            max-width: 600px; /* Adjusted max-width for better responsiveness */
             padding: 30px;
             background: #111;
             color: #fff;
             border-radius: 15px;
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
-            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center content horizontally */
         }
 
         .report-box h3 {
-            font-size: 24px;
+            font-size: 28px; /* Slightly larger heading */
             color: #2eccff;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-family: 'Orbitron', sans-serif; /* Futuristic font */
+            text-align: center;
         }
 
         .disclaimer {
-            font-size: 12px;
+            font-size: 14px; /* Slightly larger disclaimer */
             color: #ccc;
-            margin-bottom: 20px;
-            line-height: 1.4;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            text-align: center;
         }
 
         select, textarea {
@@ -44,6 +68,7 @@
             background: #1e1e1e;
             color: white;
             font-size: 16px;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
         }
 
         textarea {
@@ -53,6 +78,7 @@
 
         .checkbox-group {
             margin-bottom: 20px;
+            width: 100%;
         }
 
         .checkbox-group label {
@@ -62,8 +88,51 @@
             cursor: pointer;
         }
 
-        .checkbox-group input[type="checkbox"] {
-            margin-right: 10px;
+        /* Severity Buttons Styling */
+        .severity-group {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .severity-button {
+            flex-grow: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid transparent; /* Default transparent border */
+            background-color: #374151; /* Dark gray default */
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .severity-button.low {
+            background-color: #10b981; /* Green */
+        }
+        .severity-button.medium {
+            background-color: #f59e0b; /* Amber */
+        }
+        .severity-button.high {
+            background-color: #ef4444; /* Red */
+        }
+
+        .severity-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .severity-button.selected {
+            border-color: #2eccff; /* Highlight selected with blue border */
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(46, 204, 255, 0.5); /* Glowing effect */
         }
 
         button[type="submit"] {
@@ -72,15 +141,42 @@
             border: none;
             border-radius: 8px;
             color: white;
-            font-size: 16px;
+            font-size: 18px; /* Larger font for submit button */
             cursor: pointer;
             transition: background 0.3s;
+            width: 100%;
+            font-family: 'Orbitron', sans-serif;
         }
 
         button[type="submit"]:hover {
             background-color: #c0392b;
+            transform: translateY(-1px);
+        }
+
+        /* Message Box Styling */
+        .message-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .message-box.success {
+            background-color: #10b981; /* Green */
+            color: white;
+        }
+        .message-box.error {
+            background-color: #ef4444; /* Red */
+            color: white;
+        }
+        .hidden {
+            display: none;
         }
     </style>
+
+    <div id="map"></div>
 
     <div class="report-box">
         <h3>🚨 Report Emergency</h3>
@@ -92,16 +188,29 @@
                 <option value="fire">🔥 Fire</option>
                 <option value="flood">🌊 Flood</option>
                 <option value="accident">🚨 Accident</option>
+                <option value="medical">⚕️ Medical</option>
+                <option value="natural_disaster">🌪️ Natural Disaster</option>
+                <option value="crime">🔪 Crime</option>
+                <option value="other">❓ Other</option>
             </select>
+
+            <!-- Severity Buttons -->
+            <div class="severity-group">
+                <button type="button" class="severity-button low" data-severity="low" onclick="selectSeverity(this)">🟢 Low</button>
+                <button type="button" class="severity-button medium" data-severity="medium" onclick="selectSeverity(this)">🟡 Medium</button>
+                <button type="button" class="severity-button high" data-severity="high" onclick="selectSeverity(this)">🔴 High</button>
+            </div>
 
             <div class="checkbox-group">
                 <label><input type="checkbox" name="options" value="FireBrigade"> FireBrigade</label>
                 <label><input type="checkbox" name="options" value="Police"> Police</label>
                 <label><input type="checkbox" name="options" value="Ambulance"> Ambulance</label>
+                <label><input type="checkbox" name="options" value="NDRF"> NDRF</label>
+                <label><input type="checkbox" name="options" value="SDRF"> SDRF</label>
             </div>
 
-            <textarea 
-                id="description" 
+            <textarea
+                id="description"
                 name="description"
                 placeholder="Describe the emergency (e.g., 100 people trapped, need boats!)"
                 required
@@ -109,6 +218,7 @@
 
             <button type="submit">Send Emergency Alert</button>
         </form>
+        <div id="status-message" class="message-box hidden"></div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
@@ -118,11 +228,42 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
+        let selectedSeverity = 'low'; // Default severity
+
+        // Function to handle severity button clicks
+        function selectSeverity(button) {
+            // Remove 'selected' class from all buttons
+            document.querySelectorAll('.severity-button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            // Add 'selected' class to the clicked button
+            button.classList.add('selected');
+            // Update the selectedSeverity variable
+            selectedSeverity = button.dataset.severity;
+        }
+
+        // Initialize the default selected severity button on load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('.severity-button.low').classList.add('selected');
+        });
+
+        // Function to display messages (replaces alert)
+        function displayMessage(message, type) {
+            const statusMessageDiv = document.getElementById('status-message');
+            statusMessageDiv.textContent = message;
+            statusMessageDiv.className = `message-box ${type} ${message ? '' : 'hidden'}`;
+            if (message) {
+                setTimeout(() => {
+                    statusMessageDiv.classList.add('hidden');
+                }, 5000); // Hide message after 5 seconds
+            }
+        }
+
         async function reportEmergency(event) {
             event.preventDefault();
 
             if (!navigator.geolocation) {
-                alert("Geolocation not supported");
+                displayMessage("Geolocation not supported by your browser.", 'error');
                 return;
             }
 
@@ -131,25 +272,34 @@
                 const lng = pos.coords.longitude;
                 const description = document.getElementById('description').value;
                 const tag = document.getElementById('tagDropdown').value;
+                // Get the selected severity
+                const severity = selectedSeverity;
 
                 const response = await fetch('/api/report_emergency', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ lat, lng, description, tag })
+                    body: JSON.stringify({ lat, lng, description, tag, severity }) // Include severity
                 });
 
                 if (response.ok) {
-                    alert('Emergency reported successfully! Help is on the way.');
+                    displayMessage('Emergency reported successfully! Help is on the way.', 'success');
                     map.setView([lat, lng], 15);
                     L.marker([lat, lng]).addTo(map)
-                        .bindPopup(`🚨 ${tag.charAt(0).toUpperCase() + tag.slice(1)} Emergency`).openPopup();
+                        .bindPopup(`🚨 ${tag.charAt(0).toUpperCase() + tag.slice(1)} Emergency (${severity.toUpperCase()})`).openPopup();
 
                     document.getElementById('description').value = '';
+                    // Reset severity to low after successful report
+                    document.querySelectorAll('.severity-button').forEach(btn => {
+                        btn.classList.remove('selected');
+                    });
+                    document.querySelector('.severity-button.low').classList.add('selected');
+                    selectedSeverity = 'low';
+
                 } else {
-                    alert('Failed to report emergency.');
+                    displayMessage('Failed to report emergency.', 'error');
                 }
             }, () => {
-                alert("Please enable location access to report emergency!");
+                displayMessage("Please enable location access to report emergency!", 'error');
             });
         }
     </script>
